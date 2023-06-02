@@ -1,5 +1,6 @@
 package com.example.caiflinkcdc;
 
+import com.example.caiflinkcdc.sink.MySink;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -56,7 +57,9 @@ public class MySqlSourceExample {
         DataStreamSink<String> mySQLSource = env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")
                 // 设置 source 节点的并行度为 4
                 .setParallelism(1)
-                .print().setParallelism(1);
+                //添加处理，到Sink
+                .addSink(new MySink()).setParallelism(1);;
+//                .print().setParallelism(1);
 
 //        //实时同步数据到仓库
 //        Connection connection = getConnection();
