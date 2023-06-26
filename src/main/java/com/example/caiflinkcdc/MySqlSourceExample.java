@@ -42,7 +42,7 @@ public class MySqlSourceExample {
                 .username(sourceUsername)
                 .password(sourcePassword)
                 .deserializer(new JsonDebeziumDeserializationSchema()) // 将 SourceRecord 转换为 JSON 字符串
-                .startupOptions(StartupOptions.latest())//
+                .startupOptions(StartupOptions.latest())//配置增量同步
                 .build();
 //        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration config = new Configuration();
