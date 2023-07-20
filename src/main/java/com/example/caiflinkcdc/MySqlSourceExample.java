@@ -1,14 +1,18 @@
 package com.example.caiflinkcdc;
 
-import com.example.caiflinkcdc.sink.MySink;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -33,6 +37,7 @@ public class MySqlSourceExample {
         String sourcePassword = "Cheyun@De123";
         String sourceDatabase = "matrix-member-demo";
         String sourceTable = "matrix-member-demo.member";
+        String hdfsPath = "hdfs://localhost:9000/hdfs-api/test";
 
         MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
                 .hostname(sourceHostname)
@@ -51,28 +56,34 @@ public class MySqlSourceExample {
 
         // 设置 3s 的 checkpoint 间隔
         env.enableCheckpointing(3000);
-//        DataStreamSource<String> mysqlDS = env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")
-//                .setParallelism(4);
-
+        StreamingFileSink<String> streamingFileSink = getStreamingFileSink(hdfsPath);
         DataStreamSink<String> mySQLSource = env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")
                 // 设置 source 节点的并行度为 4
                 .setParallelism(1)
                 //添加处理，到Sink
-                .addSink(new MySink()).setParallelism(1);;
+//                .addSink(new MySink()).setParallelism(1)
+//                .addSink(new HadoopSink(hdfsPath))
+                .addSink(streamingFileSink)
+                .name("Hadoop Sink")
+                .uid("hadoop-sink-uid");
 //                .print().setParallelism(1);
-
-//        //实时同步数据到仓库
-//        Connection connection = getConnection();
-//        StringBuilder sql = new StringBuilder();
-//        sql.append("select * from bi_sell_month");
-//        pstmt = connection.prepareStatement(sql.toString());
-//        pstmt.execute();
-//        pstmt.close();
-        // 设置 sink 节点并行度为 1
 
         env.execute("MySQL Source");
 
+    }
 
+    /**
+     * StreamingFileSink 它可以根据给定的分桶策略将数据写入到不同的 HDFS 文件中
+     * 我们传入了 Path 对象来指定数据写入的基本路径，并使用 SimpleStringEncoder 来对数据进行编码。然后，使用 withBucketAssigner 方法设置了时间窗口的分桶策略，这里使用 DateTimeBucketAssigner 来按照时间窗口进行分桶。
+     * @param hdfsPath
+     * @return
+     */
+    private static StreamingFileSink<String> getStreamingFileSink(String hdfsPath) {
+        // 创建 StreamingFileSink 并设置相关属性
+        return StreamingFileSink
+                .forRowFormat(new Path(hdfsPath), new SimpleStringEncoder<String>("UTF-8"))
+                .withBucketAssigner(new DateTimeBucketAssigner<>("yyyy-MM-dd--HHmm"))
+                .build();
     }
 
     /**
