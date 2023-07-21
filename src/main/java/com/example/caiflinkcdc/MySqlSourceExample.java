@@ -10,13 +10,17 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import com.ververica.cdc.connectors.mysql.table.StartupOptions;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author 77533
@@ -66,8 +70,6 @@ public class MySqlSourceExample {
                 .addSink(streamingFileSink)
                 .name("Hadoop Sink")
                 .uid("hadoop-sink-uid");
-//                .print().setParallelism(1);
-
         env.execute("MySQL Source");
 
     }
@@ -75,14 +77,36 @@ public class MySqlSourceExample {
     /**
      * StreamingFileSink 它可以根据给定的分桶策略将数据写入到不同的 HDFS 文件中
      * 我们传入了 Path 对象来指定数据写入的基本路径，并使用 SimpleStringEncoder 来对数据进行编码。然后，使用 withBucketAssigner 方法设置了时间窗口的分桶策略，这里使用 DateTimeBucketAssigner 来按照时间窗口进行分桶。
+     *
      * @param hdfsPath
      * @return
      */
     private static StreamingFileSink<String> getStreamingFileSink(String hdfsPath) {
+        //配置config 前缀，后缀 prefix-x-.txt
+        OutputFileConfig config = OutputFileConfig.builder()
+                .withPartPrefix("prefix")
+                .withPartSuffix(".txt").build();
         // 创建 StreamingFileSink 并设置相关属性
+
+        //OnCheckpointRollingPolicy：在每次Flink检查点完成时滚动到新文件。
+        //DefaultRollingPolicy：根据文件大小和时间间隔滚动到新文件。
+        //OnFileSizeRollingPolicy：根据文件大小滚动到新文件。
+        //OnProcessingTimeRollingPolicy：根据处理时间滚动到新文件。
+
         return StreamingFileSink
                 .forRowFormat(new Path(hdfsPath), new SimpleStringEncoder<String>("UTF-8"))
-                .withBucketAssigner(new DateTimeBucketAssigner<>("yyyy-MM-dd--HHmm"))
+                //分桶策略
+                .withBucketAssigner(new DateTimeBucketAssigner<>("yyyy-MM-dd"))
+                .withBucketCheckInterval(1000L) // 设置检查新桶的间隔时间，单位：毫秒
+                //设置滚动策略 设置零件文件在滚动之前可以保持打开状态的最长时间2min
+                //设置允许的不活动间隔，在此间隔之后，零件文件必须滚动
+                // 最大容量
+                .withRollingPolicy(DefaultRollingPolicy.builder()
+                        .withRolloverInterval(TimeUnit.MINUTES.toMillis(2))
+                        .withInactivityInterval(TimeUnit.MINUTES.toMillis(1))
+                        .withMaxPartSize(1024 * 1024 * 1024).build()
+                )
+                .withOutputFileConfig(config)
                 .build();
     }
 
