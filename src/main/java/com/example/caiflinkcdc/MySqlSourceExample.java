@@ -60,6 +60,7 @@ public class MySqlSourceExample {
 
         // 设置 3s 的 checkpoint 间隔
         env.enableCheckpointing(3000);
+        //streamingFileSink 配置
         StreamingFileSink<String> streamingFileSink = getStreamingFileSink(hdfsPath);
         DataStreamSink<String> mySQLSource = env.fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")
                 // 设置 source 节点的并行度为 4
