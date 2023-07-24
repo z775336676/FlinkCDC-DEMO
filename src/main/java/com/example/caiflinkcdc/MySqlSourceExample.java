@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
  * @author 77533
  */
 public class MySqlSourceExample {
-    private static PreparedStatement pstmt = null;
 
     private static Connection conn = null;
     private static String url = "jdbc:mysql://127.0.0.1:3306/bi?rewriteBatchedStatements=true&serverTimezone=GMT%2B8&useServerPrepStmts=true&cachePrepStmts=true&characterEncoding=utf8&tinyInt1isBit=false";
