@@ -95,6 +95,12 @@
             <artifactId>flink-runtime-web_2.12</artifactId>
             <version>1.13.5</version>
         </dependency>
+<!--        //freemarker-->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.31</version>
+        </dependency>
 
 
         <dependency>
